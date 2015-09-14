@@ -1,0 +1,1 @@
+not <main.*>: warn(A-4), strict_sequence

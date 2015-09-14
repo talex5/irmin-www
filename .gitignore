@@ -1,0 +1,8 @@
+Makefile
+_build/
+irmin-www.xl.in
+irmin-www_libvirt.xml
+log
+main.ml
+main.native
+mir-irmin-www
