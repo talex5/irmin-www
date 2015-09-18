@@ -35,8 +35,8 @@ let stack console =
 
 let main =
   foreign
-    ~libraries:["irmin.mem"; "mirage-http"]
-    ~packages:["irmin"; "mirage-http"]
+    ~libraries:["irmin.git"; "mirage-http"; "irmin.unix"; "irmin.mirage"]
+    ~packages:["irmin"; "mirage-http"; "nocrypto"; "mirage-flow"; "mirage-types-lwt"; "channel"; "git"; "mirage-git"]
     "Unikernel.Main" (stackv4 @-> job)
 
 let () =
