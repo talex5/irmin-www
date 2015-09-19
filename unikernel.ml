@@ -27,25 +27,6 @@ let config = Irmin_unix.Irmin_git.config ~root:"db" ()
 
 module Bundle = Tc.Pair(Store.Private.Slice)(Store.Head)
 
-module Irmin_server = struct
-  module X = struct
-    include Cohttp_lwt_unix.Server
-    let listen t ?timeout uri =
-      let port = match Uri.port uri with
-        | None   -> 8081
-        | Some p -> p in
-      create ?timeout ~mode:(`TCP (`Port port)) t
-  end
-  module Y = struct
-    let pretty d =
-      let tm = Unix.localtime (Int64.to_float d) in
-      Printf.sprintf "%02d:%02d:%02d"
-        tm.Unix.tm_hour tm.Unix.tm_min tm.Unix.tm_sec
-  end
-
-  include Irmin_http_server.Make(X)(Y)(Store)
-end
-
 (* Split a URI into a list of path segments *)
 let split_path path =
   let rec aux = function
@@ -112,6 +93,28 @@ module Main (Stack:STACKV4) = struct
       TCP.close flow
     );
     Lwt.async (fun () ->
+      let module Irmin_server = struct
+        (* We have to define this here because we need [stack] in scope
+         * for [listen]. Perhaps it would make more sense for [Irmin_http_server]
+         * to return the spec, rather than calling [listen] itself? *)
+        module X = struct
+          include S
+
+          let listen t ?timeout uri =
+            assert (timeout = None);
+            let port = match Uri.port uri with
+              | None   -> 8081
+              | Some p -> p in
+            Stack.listen_tcpv4 stack ~port (listen t);
+            return ()
+        end
+        module Y = struct
+          let pretty d =
+            Printf.sprintf "%Ld" d
+        end
+
+        include Irmin_http_server.Make(X)(Y)(Store)
+      end in
       Irmin_server.listen (s "server") ~strict:true irmin_uri
     );
     Stack.listen stack

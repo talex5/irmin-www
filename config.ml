@@ -15,9 +15,10 @@ let net =
 
 let dhcp =
   try match Sys.getenv "DHCP" with
-    | "" -> false
-    | _  -> true
-  with Not_found -> true
+    | "no" -> false
+    | "yes"  -> true
+    | _ -> raise Not_found
+  with Not_found -> failwith "Set DHCP to 'yes' or 'no'"
 
 let ipv4_conf =
   let i = Ipaddr.V4.of_string_exn in
@@ -34,8 +35,10 @@ let stack console =
   | `Socket, _     -> socket_stackv4 console [Ipaddr.V4.any]
 
 let main =
+  let libraries = ["irmin.git"; "mirage-http"; "irmin.mirage"] in
+  let libraries = if get_mode () = `Xen then libraries else "irmin.unix" :: libraries in
   foreign
-    ~libraries:["irmin.git"; "mirage-http"; "irmin.unix"; "irmin.mirage"]
+    ~libraries
     ~packages:["irmin"; "mirage-http"; "nocrypto"; "mirage-flow"; "mirage-types-lwt"; "channel"; "git"; "mirage-git"]
     "Unikernel.Main" (stackv4 @-> job)
 
