@@ -41,9 +41,14 @@ module Main (Stack:STACKV4) = struct
   let handle_request s _conn_id request _body =
     let path = Uri.path (Cohttp.Request.uri request) in
     let s = s path in
-    Store.read s (split_path path) >>= function
-    | None -> S.respond_error ~status:`Not_found ~body:(Printf.sprintf "File '%s' does not exist" path) ()
+    let ps = split_path path in
+    Store.read s ps >>= function
     | Some body -> S.respond_string ~status:`OK ~body ()
+    | None ->
+        Store.read s (ps @ ["index.html"]) >>= function
+        | Some body -> S.respond_string ~status:`OK ~body ()
+        | None ->
+            S.respond_error ~status:`Not_found ~body:(Printf.sprintf "File '%s' does not exist" path) ()
 
   let dump s =
     let s = s "export" in
