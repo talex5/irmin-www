@@ -7,6 +7,8 @@ open V1_LWT
 
 let () = Log.(set_log_level INFO)
 
+let irmin_uri = Uri.of_string "http://127.0.0.1:8081"
+
 (* Never used, but needed to create the store. *)
 let task s = Irmin.Task.create ~date:0L ~owner:"Server" s
 
@@ -24,6 +26,25 @@ let config = Irmin_unix.Irmin_git.config ~root:"db" ()
 *)
 
 module Bundle = Tc.Pair(Store.Private.Slice)(Store.Head)
+
+module Irmin_server = struct
+  module X = struct
+    include Cohttp_lwt_unix.Server
+    let listen t ?timeout uri =
+      let port = match Uri.port uri with
+        | None   -> 8081
+        | Some p -> p in
+      create ?timeout ~mode:(`TCP (`Port port)) t
+  end
+  module Y = struct
+    let pretty d =
+      let tm = Unix.localtime (Int64.to_float d) in
+      Printf.sprintf "%02d:%02d:%02d"
+        tm.Unix.tm_hour tm.Unix.tm_min tm.Unix.tm_sec
+  end
+
+  include Irmin_http_server.Make(X)(Y)(Store)
+end
 
 (* Split a URI into a list of path segments *)
 let split_path path =
@@ -89,6 +110,9 @@ module Main (Stack:STACKV4) = struct
       Log.info "Connection from %s (client port %d)" (Ipaddr.V4.to_string peer) port;
       S.listen http flow >>= fun () ->
       TCP.close flow
+    );
+    Lwt.async (fun () ->
+      Irmin_server.listen (s "server") ~strict:true irmin_uri
     );
     Stack.listen stack
 end
