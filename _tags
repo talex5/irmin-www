@@ -1,1 +1,1 @@
-not <main.*>: warn(A-4), strict_sequence
+not <main.*> and not <static1.*>: warn(A-4), strict_sequence

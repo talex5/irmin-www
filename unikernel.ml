@@ -7,7 +7,7 @@ open V1_LWT
 
 let () = Log.(set_log_level INFO)
 
-let irmin_uri = Uri.of_string "http://127.0.0.1:8081"
+let irmin_uri = Uri.of_string "https://127.0.0.1:8444"
 
 (* Never used, but needed to create the store. *)
 let task s = Irmin.Task.create ~date:0L ~owner:"Server" s
@@ -36,9 +36,24 @@ let split_path path =
   List.filter (fun e -> e <> "")
     (aux (Re_str.(split_delim (regexp_string "/") path)))
 
-module Main (Stack:STACKV4) = struct
+module Main (Stack:STACKV4) (Conf:KV_RO) (Clock:V1.CLOCK) = struct
   module TCP  = Stack.TCPV4
-  module S = Cohttp_mirage.Server(TCP)
+  module TLS  = Tls_mirage.Make (TCP)
+  module X509 = Tls_mirage.X509 (Conf) (Clock)
+  module S = Cohttp_mirage.Server(TLS)
+
+  (* Take a new raw flow, perform a TLS handshake to get a TLS flow and call [f tls_flow].
+     When done, the underlying flow will be closed in all cases. *)
+  let wrap_tls tls_config f flow =
+    let peer, port = TCP.get_dest flow in
+    Log.info "Connection from %s (client port %d)" (Ipaddr.V4.to_string peer) port;
+    TLS.server_of_flow tls_config flow >>= function
+    | `Error _ -> Log.warn "TLS failed"; TCP.close flow
+    | `Eof     -> Log.warn "TLS eof"; TCP.close flow
+    | `Ok flow  ->
+        Lwt.finalize
+          (fun () -> f flow)
+          (fun () -> TLS.close flow)
 
   let handle_request s _conn_id request _body =
     let path = Uri.path (Cohttp.Request.uri request) in
@@ -81,17 +96,14 @@ module Main (Stack:STACKV4) = struct
     | false -> failwith "Irmin import failed at FF"
     | true -> return ()
 
-  let start stack =
+  let start stack conf _clock =
+    X509.certificate conf `Default >>= fun cert ->
+    let tls_config = Tls.Config.server ~certificates:(`Single cert) () in
     Store.create config task >>= fun s ->
 (*     dump s >>= fun () -> *)
     import s Init_db.init_db >>= fun () ->
     let http = S.make ~conn_closed:ignore ~callback:(handle_request s) () in
-    Stack.listen_tcpv4 stack ~port:8080 (fun flow ->
-      let peer, port = TCP.get_dest flow in
-      Log.info "Connection from %s (client port %d)" (Ipaddr.V4.to_string peer) port;
-      S.listen http flow >>= fun () ->
-      TCP.close flow
-    );
+    Stack.listen_tcpv4 stack ~port:8443 (wrap_tls tls_config (S.listen http));
     Lwt.async (fun () ->
       let module Irmin_server = struct
         (* We have to define this here because we need [stack] in scope
@@ -103,9 +115,9 @@ module Main (Stack:STACKV4) = struct
           let listen t ?timeout uri =
             assert (timeout = None);
             let port = match Uri.port uri with
-              | None   -> 8081
+              | None   -> failwith "Missing port in Irmin endpoint"
               | Some p -> p in
-            Stack.listen_tcpv4 stack ~port (listen t);
+            Stack.listen_tcpv4 stack ~port (wrap_tls tls_config (listen t));
             return ()
         end
         module Y = struct

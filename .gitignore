@@ -6,3 +6,5 @@ log
 main.ml
 main.native
 mir-irmin-www
+conf
+static1.*

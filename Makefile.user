@@ -1,0 +1,11 @@
+conf/tls/server.key:
+	@echo Generating server key...
+	[ -d conf/tls ] || mkdir -p conf/tls
+	openssl genpkey -out $@ -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096
+
+conf/tls/server.pem: conf/tls/server.key
+	@echo ">>> Generating server X.509 certificate."
+	@echo ">>> Enter the server's full hostname as the 'Common Name' (e.g. www.mynet)."
+	@echo ">>> Everything else can be left blank."
+	@echo
+	@openssl req -new -x509 -key $< -out $@ -days 10000
