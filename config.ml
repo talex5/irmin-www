@@ -37,7 +37,8 @@ let main =
   foreign
     ~libraries
     ~packages:["irmin"; "mirage-http"; "nocrypto"; "mirage-flow"; "tls"; "nocrypto";
-               "mirage-types-lwt"; "channel"; "git"; "mirage-git"]
+               "mirage-types-lwt"; "channel"; "git"; "mirage-git";
+               "git-unix"]  (* Workaround for https://github.com/mirage/irmin/issues/276 *)
     "Unikernel.Main" (stackv4 @-> kv_ro @-> clock @-> job)
 
 let conf = crunch "conf"

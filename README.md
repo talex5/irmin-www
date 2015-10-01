@@ -10,6 +10,11 @@ It serves pages directly from an in-memory Irmin repository.
 Instructions
 ------------
 
+Configure using mirage as usual (use `--xen` for a unikernel or `--unix` to make a regular Unix server process):
+
+    opam install mirage
+    env DHCP=yes mirage configure --xen
+
 Generate a private key and X.509 certificate:
 
     $ make conf/tls/server.pem
@@ -20,10 +25,6 @@ For testing, you can accept the defaults for most fields, but make sure you ente
 
 This will create a private key (`conf/tls/server.key`) and a self-signed certificate (`conf/tls/server.pem`). You can replace the self-signed X.509 certificate with a certified one from a CA if desired.
 
-Configure using mirage as usual (use `--xen` for a unikernel or `--unix` to make a regular Unix server process):
-
-    opam install mirage
-    env DHCP=yes mirage configure --xen
     make
 
 It will serve web pages on port 8443 and accept Irmin operations on port 8444.
