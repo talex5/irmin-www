@@ -7,8 +7,6 @@ open V1_LWT
 
 let () = Log.(set_log_level INFO)
 
-let irmin_uri = Uri.of_string "https://127.0.0.1:8444"
-
 (* Never used, but needed to create the store. *)
 let task s = Irmin.Task.create ~date:0L ~owner:"Server" s
 
@@ -36,11 +34,16 @@ let split_path path =
   List.filter (fun e -> e <> "")
     (aux (Re_str.(split_delim (regexp_string "/") path)))
 
+module Date_formatter = struct
+  let pretty = Printf.sprintf "%Ld"
+end
+
 module Main (Stack:STACKV4) (Conf:KV_RO) (Clock:V1.CLOCK) = struct
   module TCP  = Stack.TCPV4
   module TLS  = Tls_mirage.Make (TCP)
   module X509 = Tls_mirage.X509 (Conf) (Clock)
   module S = Cohttp_mirage.Server(TLS)
+  module Irmin_server = Irmin_http_server.Make(S)(Date_formatter)(Store)
 
   (* Take a new raw flow, perform a TLS handshake to get a TLS flow and call [f tls_flow].
      When done, the underlying flow will be closed in all cases. *)
@@ -105,29 +108,9 @@ module Main (Stack:STACKV4) (Conf:KV_RO) (Clock:V1.CLOCK) = struct
     let http = S.make ~conn_closed:ignore ~callback:(handle_request s) () in
     Stack.listen_tcpv4 stack ~port:8443 (wrap_tls tls_config (S.listen http));
     Lwt.async (fun () ->
-      let module Irmin_server = struct
-        (* We have to define this here because we need [stack] in scope
-         * for [listen]. Perhaps it would make more sense for [Irmin_http_server]
-         * to return the spec, rather than calling [listen] itself? *)
-        module X = struct
-          include S
-
-          let listen t ?timeout uri =
-            assert (timeout = None);
-            let port = match Uri.port uri with
-              | None   -> failwith "Missing port in Irmin endpoint"
-              | Some p -> p in
-            Stack.listen_tcpv4 stack ~port (wrap_tls tls_config (listen t));
-            return ()
-        end
-        module Y = struct
-          let pretty d =
-            Printf.sprintf "%Ld" d
-        end
-
-        include Irmin_http_server.Make(X)(Y)(Store)
-      end in
-      Irmin_server.listen (s "server") ~strict:true irmin_uri
+      let spec = Irmin_server.http_spec (s "server") ~strict:true in
+      Stack.listen_tcpv4 stack ~port:8444 (wrap_tls tls_config (S.listen spec));
+      return ()
     );
     Stack.listen stack
 end
