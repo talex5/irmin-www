@@ -98,10 +98,7 @@ module Main (Stack:STACKV4) (Conf:KV_RO) (Clock:V1.CLOCK) = struct
   let import s db =
     let s = s "import" in
     let buf = Mstruct.of_string db in
-    Printf.printf "db: [%s]\n" db;
-    Printf.printf "before bundle.read\n";
     let (slice, head) = Bundle.read buf in
-    Printf.printf "after bundle.read\n";
     let r = Store.repo s in
     Store.Repo.import r slice >>= function
     | `Error -> failwith "Irmin import failed"
@@ -115,15 +112,10 @@ module Main (Stack:STACKV4) (Conf:KV_RO) (Clock:V1.CLOCK) = struct
     X509.certificate conf `Default >>= fun cert ->
     let tls_config = Tls.Config.server ~certificates:(`Single cert) () in
     Store.Repo.create config >>= fun r ->
-    Printf.printf "mark 1\n";
     Store.master task r >>= fun s ->
-    Printf.printf "mark 2\n";
     import s Init_db.init_db >>= fun () ->
-    Printf.printf "mark 3\n";
     let http = S.make ~conn_closed:ignore ~callback:(handle_request s) () in
-    Printf.printf "mark 4\n";
     Stack.listen_tcpv4 stack ~port:8443 (wrap_tls tls_config (S.listen http));
-    Printf.printf "mark 5\n";
     let module Irmin_server = struct
       (* We have to define this here because we need [stack] in scope
          * for [listen]. Perhaps it would make more sense for [Irmin_http_server]
