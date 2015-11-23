@@ -10,13 +10,6 @@ It serves pages directly from an in-memory Irmin repository.
 Instructions
 ------------
 
-Pin the `dolog` and `bin_prot` packages as follows to versions that work with Irmin on Xen:
-
-```
-opam pin add dolog https://github.com/unixjunkie/dolog.git#no_unix
-opam pin add bin_prot https://github.com/samoht/bin_prot.git#112.35.00+xen
-```
-
 Pin the `certify` package for creating certificates and keys:
 
 ```
