@@ -10,15 +10,27 @@ It serves pages directly from an in-memory Irmin repository.
 Instructions
 ------------
 
-Generate a private key and X.509 certificate:
+Pin the `dolog` and `bin_prot` packages as follows to versions that work with Irmin on Xen:
 
-    $ make conf/tls/server.pem
+```
+opam pin add dolog https://github.com/unixjunkie/dolog.git#no_unix
+opam pin add bin_prot https://github.com/samoht/bin_prot.git#112.35.00+xen
+```
 
-For testing, you can accept the defaults for most fields, but make sure you enter the server's name as the "Common Name":
+Pin the `certify` package for creating certificates and keys:
 
-    Common Name (e.g. server FQDN or YOUR name) []:www.example.org
+```
+opam pin add certify https://github.com/yomimono/certify.git
+```
 
-This will create a private key (`conf/tls/server.key`) and a self-signed certificate (`conf/tls/server.pem`). You can replace the self-signed X.509 certificate with a certified one from a CA if desired.
+Generate a private key and self-signed X.509 certificate, replacing "localhost" with the common name of the site you'd like to serve:
+
+```
+mkdir conf/tls
+selfsign --out=conf/tls/server.pem --keyout=conf/tls/server.key -d 365 -l 2048 localhost
+```
+
+You can replace the self-signed X.509 certificate with a certified one from a CA if desired.
 
 Configure using mirage as usual (use `--xen` for a unikernel or `--unix` to make a regular Unix server process):
 
