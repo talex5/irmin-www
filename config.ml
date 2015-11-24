@@ -32,12 +32,13 @@ let stack console =
       with Not_found -> failwith "Set DHCP to 'yes' or 'no'"
 
 let main =
-  let libraries = ["irmin.git"; "mirage-http"; "irmin.mirage"; "tls.mirage"] in
+  let libraries = ["irmin.git"; "mirage-http"; "irmin.mirage"; "tls.mirage";
+                   "crc"] in
   let libraries = if get_mode () = `Xen then libraries else "irmin.unix" :: libraries in
   foreign
     ~libraries
     ~packages:["irmin"; "mirage-http"; "nocrypto"; "mirage-flow"; "tls"; "nocrypto";
-               "mirage-types-lwt"; "channel"; "git"; "mirage-git"]
+               "mirage-types-lwt"; "channel"; "git"; "mirage-git"; "crc"]
     "Unikernel.Main" (stackv4 @-> kv_ro @-> clock @-> job)
 
 let conf = crunch "conf"
