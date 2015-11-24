@@ -25,6 +25,14 @@ selfsign --out=conf/tls/server.pem --keyout=conf/tls/server.key -d 365 -l 2048 l
 
 You can replace the self-signed X.509 certificate with a certified one from a CA if desired.
 
+To build unikernels for use with Xen, you'll need a few custom pins:
+
+```
+opam pin add bin_prot https://github.com/samoht/bin_prot.git#112.35.00+xen
+opam pin add crc https://github.com/yomimono/ocaml-crc.git#xen_linkopts
+opam pin add dolog https://github.com/unixjunkie/dolog.git#no_unix
+```
+
 Configure using mirage as usual (use `--xen` for a unikernel or `--unix` to make a regular Unix server process):
 
     opam install mirage
